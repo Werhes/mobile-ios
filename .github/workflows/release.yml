@@ -1,0 +1,121 @@
+name: Build & Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Версия / тег релиза (например 1.2.0). Если пусто — сгенерируется автоматически'
+        required: false
+        default: ''
+        type: string
+      release_name:
+        description: 'Название релиза. Если пусто — используется тег'
+        required: false
+        default: ''
+        type: string
+      description:
+        description: 'Описание релиза (changelog / описание изменений)'
+        required: false
+        default: ''
+        type: string
+      prerelease:
+        description: 'Собрать как pre-release'
+        required: false
+        default: false
+        type: boolean
+      publish_to_release:
+        description: 'Выложить в GitHub Release (если выключить — только сборка + артефакт)'
+        required: false
+        default: true
+        type: boolean
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: macos-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: |
+          sudo xcode-select -s /Applications/Xcode_*.app/Contents/Developer
+
+      - name: Resolve Swift packages
+        run: |
+          xcodebuild -resolvePackageDependencies \
+            -project OpenVK.xcodeproj \
+            -scheme OpenVK
+
+      - name: Build (Release, unsigned)
+        run: |
+          xcodebuild \
+            -project OpenVK.xcodeproj \
+            -scheme OpenVK \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            build
+
+      - name: Package .app into zip
+        run: |
+          APP_PATH=$(find build/Build/Products/Release-iphoneos -maxdepth 1 -name '*.app' | head -n 1)
+          if [ -z "$APP_PATH" ]; then
+            echo "::error::App bundle not found in build output"
+            exit 1
+          fi
+          APP_DIR=$(dirname "$APP_PATH")
+          APP_NAME=$(basename "$APP_PATH" .app)
+          ZIP_NAME="${APP_NAME}-iOS.zip"
+          cd "$APP_DIR"
+          ditto -c -k --sequesterRsrc --keepParent "${APP_NAME}.app" "${ZIP_NAME}"
+          echo "ZIP_PATH=${APP_DIR}/${ZIP_NAME}" >> "$GITHUB_ENV"
+          echo "ZIP_NAME=${ZIP_NAME}" >> "$GITHUB_ENV"
+          ls -la
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: OpenVK-iOS-build
+          path: ${{ env.ZIP_PATH }}
+          if-no-files-found: error
+
+      # --- Вычисляем тег и готовим данные релиза ---
+      - name: Compute tag
+        id: tag
+        run: |
+          TAG="${{ github.event.inputs.version }}"
+          if [ -z "$TAG" ]; then
+            TAG="v$(date +%Y.%m.%d-%H%M%S)"
+          fi
+          echo "TAG=${TAG}" >> "$GITHUB_ENV"
+
+      - name: Create git tag
+        if: ${{ github.event.inputs.publish_to_release == 'true' }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "Tag $TAG already exists, skipping creation"
+          else
+            git tag "$TAG"
+            git push origin "$TAG"
+          fi
+
+      - name: Create GitHub Release
+        if: ${{ github.event.inputs.publish_to_release == 'true' }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.TAG }}
+          name: ${{ github.event.inputs.release_name != '' && github.event.inputs.release_name || env.TAG }}
+          body: ${{ github.event.inputs.description }}
+          prerelease: ${{ github.event.inputs.prerelease == 'true' }}
+          files: ${{ env.ZIP_PATH }}

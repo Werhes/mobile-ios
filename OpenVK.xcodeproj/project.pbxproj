@@ -118,6 +118,10 @@
 		24A1000000000000000000B2 /* SupporterBadgeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24A1000000000000000000B1 /* SupporterBadgeView.swift */; };
 		24A1000000000000000000C2 /* SupportersService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24A1000000000000000000C1 /* SupportersService.swift */; };
 		24A1000000000000000000D2 /* SupportersListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24A1000000000000000000D1 /* SupportersListView.swift */; };
+		24A200000000000000000011 /* MusicService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24A200000000000000000001 /* MusicService.swift */; };
+		24A200000000000000000012 /* MusicPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24A200000000000000000002 /* MusicPlayer.swift */; };
+		24A200000000000000000013 /* MusicViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24A200000000000000000003 /* MusicViewModel.swift */; };
+		24A200000000000000000014 /* MusicView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24A200000000000000000004 /* MusicView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -254,6 +258,10 @@
 		24A1000000000000000000B1 /* SupporterBadgeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupporterBadgeView.swift; sourceTree = "<group>"; };
 		24A1000000000000000000C1 /* SupportersService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupportersService.swift; sourceTree = "<group>"; };
 		24A1000000000000000000D1 /* SupportersListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupportersListView.swift; sourceTree = "<group>"; };
+		24A200000000000000000001 /* MusicService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicService.swift; sourceTree = "<group>"; };
+		24A200000000000000000002 /* MusicPlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicPlayer.swift; sourceTree = "<group>"; };
+		24A200000000000000000003 /* MusicViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicViewModel.swift; sourceTree = "<group>"; };
+		24A200000000000000000004 /* MusicView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -411,6 +419,7 @@
 				24884EB0C96EA6F983392A6C /* ReportsService.swift */,
 				24885C9AAF0AF9425CF32BDF /* SearchService.swift */,
 				24A1000000000000000000C1 /* SupportersService.swift */,
+				24A200000000000000000001 /* MusicService.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -608,6 +617,7 @@
 				2488B4C6F218DB33741D4D43 /* Documents */,
 				248842D74DEA610F849866AD /* Feed */,
 				2488B6B2F448E5477EED909B /* Messages */,
+				24A200000000000000000021 /* Music */,
 				2488CA2D04034F48FDC1E816 /* NewPost */,
 				2488786FD34FA79C397C5828 /* Notifications */,
 				2488354F60E7539BD3555BF1 /* Profile */,
@@ -799,6 +809,32 @@
 				248889CFE0C11BA208B798F9 /* MainTabView.swift */,
 			);
 			path = Common;
+			sourceTree = "<group>";
+		};
+		24A200000000000000000021 /* Music */ = {
+			isa = PBXGroup;
+			children = (
+				24A200000000000000000002 /* MusicPlayer.swift */,
+				24A200000000000000000022 /* ViewModels */,
+				24A200000000000000000023 /* Views */,
+			);
+			path = Music;
+			sourceTree = "<group>";
+		};
+		24A200000000000000000022 /* ViewModels */ = {
+			isa = PBXGroup;
+			children = (
+				24A200000000000000000003 /* MusicViewModel.swift */,
+			);
+			path = ViewModels;
+			sourceTree = "<group>";
+		};
+		24A200000000000000000023 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				24A200000000000000000004 /* MusicView.swift */,
+			);
+			path = Views;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -1042,6 +1078,10 @@
 				24A1000000000000000000B2 /* SupporterBadgeView.swift in Sources */,
 				24A1000000000000000000C2 /* SupportersService.swift in Sources */,
 				24A1000000000000000000D2 /* SupportersListView.swift in Sources */,
+				24A200000000000000000011 /* MusicService.swift in Sources */,
+				24A200000000000000000012 /* MusicPlayer.swift in Sources */,
+				24A200000000000000000013 /* MusicViewModel.swift in Sources */,
+				24A200000000000000000014 /* MusicView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
