@@ -1,6 +1,6 @@
 # OpenVK for iOS
 
-Author: [Nika Falaleeva](https://github.com/nikanikoo)
+Authors: [Nika Falaleeva](https://github.com/nikanikoo) and [Lyosha Shapchits](https://github.com/Werhes)
 
 Native mobile client for iOS built with SwiftUI.\
 _Powered by OpenVK API. iOS 15.0+ supported._

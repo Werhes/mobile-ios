@@ -39,6 +39,12 @@ struct MainTabView: View {
                     }
                     .tag(AppTab.search)
 
+                    MusicView()
+                    .tabItem {
+                        Label(AppTab.music.label, systemImage: selectedTab == .music ? AppTab.music.iconFilled : AppTab.music.icon)
+                    }
+                    .tag(AppTab.music)
+
                     MessagesView()
                     .tabItem {
                         Label(AppTab.messages.label, systemImage: selectedTab == .messages ? AppTab.messages.iconFilled : AppTab.messages.icon)

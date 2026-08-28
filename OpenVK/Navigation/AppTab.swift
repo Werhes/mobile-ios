@@ -6,7 +6,7 @@
 import Foundation
 
 enum AppTab: Int, CaseIterable, Identifiable {
-    case feed, search, messages, more
+    case feed, search, music, messages, more
 
     var id: Int { rawValue }
 
@@ -14,6 +14,7 @@ enum AppTab: Int, CaseIterable, Identifiable {
         switch self {
         case .feed:     return "house"
         case .search:   return "magnifyingglass"
+        case .music:    return "music.note"
         case .messages: return "message"
         case .more:     return "square.grid.2x2"
         }
@@ -23,6 +24,7 @@ enum AppTab: Int, CaseIterable, Identifiable {
         switch self {
         case .feed:     return "house.fill"
         case .search:   return "magnifyingglass"
+        case .music:    return "music.note"
         case .messages: return "message.fill"
         case .more:     return "square.grid.2x2"
         }
@@ -32,6 +34,7 @@ enum AppTab: Int, CaseIterable, Identifiable {
         switch self {
         case .feed:     return "Лента"
         case .search:   return "Поиск"
+        case .music:    return "Музыка"
         case .messages: return "Сообщения"
         case .more:     return "Прочее"
         }
