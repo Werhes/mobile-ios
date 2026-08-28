@@ -44,7 +44,15 @@ jobs:
 
       - name: Select Xcode
         run: |
-          sudo xcode-select -s /Applications/Xcode_*.app/Contents/Developer
+          # Находим самую свежую установленную Xcode и переключаемся на неё
+          XCODE_APP=$(ls -d /Applications/Xcode*.app 2>/dev/null | sort -V | tail -n1)
+          if [ -n "$XCODE_APP" ]; then
+            echo "Using Xcode: ${XCODE_APP}"
+            sudo xcode-select -s "${XCODE_APP}/Contents/Developer" || true
+          else
+            echo "No Xcode app found in /Applications, using default developer dir"
+          fi
+          xcodebuild -version
 
       - name: Resolve Swift packages
         run: |
