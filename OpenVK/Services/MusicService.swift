@@ -15,6 +15,7 @@ protocol MusicServiceProtocol {
     func fetchNew(offset: Int, count: Int, completion: @escaping (Result<[AudioTrack], Error>) -> Void)
     func search(query: String, offset: Int, count: Int, completion: @escaping (Result<[AudioTrack], Error>) -> Void)
     func addToMyMusic(ownerID: Int, audioID: Int, completion: @escaping (Result<Void, Error>) -> Void)
+    func removeFromMyMusic(ownerID: Int, audioID: Int, completion: @escaping (Result<Void, Error>) -> Void)
 }
 
 final class MusicService: MusicServiceProtocol {
@@ -77,6 +78,26 @@ final class MusicService: MusicServiceProtocol {
             httpMethod: "GET",
             as: String.self
         ) { (result: Result<String, APIError>) in
+            switch result {
+            case .success:
+                completion(.success(()))
+            case .failure(let error):
+                completion(.failure(error))
+            }
+        }
+    }
+
+    // MARK: - Audio.delete (убрать трек у себя)
+    func removeFromMyMusic(ownerID: Int, audioID: Int, completion: @escaping (Result<Void, Error>) -> Void) {
+        APIClient.shared.call(
+            method: "audio.delete",
+            parameters: [
+                "audio_id": "\(audioID)",
+                "owner_id": "\(ownerID)"
+            ],
+            httpMethod: "GET",
+            as: Int.self
+        ) { (result: Result<Int, APIError>) in
             switch result {
             case .success:
                 completion(.success(()))

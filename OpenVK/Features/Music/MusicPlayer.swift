@@ -150,3 +150,183 @@ extension MusicPlayer: VLCMediaPlayerDelegate {
         }
     }
 }
+
+// MARK: - Скачанные треки и лайки
+
+struct DownloadedTrack: Codable, Identifiable, Hashable {
+    let id: UUID
+    let vkID: Int
+    let ownerID: Int
+    let title: String
+    let artist: String
+    let durationSeconds: Int
+    let fileName: String
+}
+
+final class OfflineTracksStore: ObservableObject {
+
+    static let shared = OfflineTracksStore()
+
+    @Published private(set) var downloadedTracks: [DownloadedTrack] = []
+    @Published private(set) var likedIDs: Set<Int> = []
+
+    private let tracksKey = "offline_downloaded_tracks_v1"
+    private let likesKey = "liked_track_ids_v1"
+
+    private init() {
+        loadTracks()
+        loadLikes()
+    }
+
+    // MARK: - Directory
+
+    private var downloadsDirectory: URL {
+        let dir = FileManager.default
+            .urls(for: .documentDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("Downloads", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir
+    }
+
+    // MARK: - Download / offline
+
+    func localURL(for track: AudioTrack) -> URL? {
+        guard let entry = entry(for: track) else { return nil }
+        return downloadsDirectory.appendingPathComponent(entry.fileName)
+    }
+
+    func isDownloaded(_ track: AudioTrack) -> Bool {
+        entry(for: track) != nil
+    }
+
+    func tracks() -> [AudioTrack] {
+        downloadedTracks.map { entry -> AudioTrack in
+            let local = downloadsDirectory.appendingPathComponent(entry.fileName)
+            return AudioTrack(
+                vkID: entry.vkID,
+                ownerID: entry.ownerID,
+                title: entry.title,
+                artist: entry.artist,
+                duration: Self.formatDuration(entry.durationSeconds),
+                durationSeconds: entry.durationSeconds,
+                url: local.absoluteString,
+                color: .appAccent,
+                systemName: "arrow.down.circle.fill"
+            )
+        }
+    }
+
+    func download(_ track: AudioTrack, completion: @escaping (Result<Void, Error>) -> Void) {
+        if isDownloaded(track) {
+            completion(.success(()))
+            return
+        }
+        guard let urlString = track.url, let url = URL(string: urlString) else {
+            completion(.failure(APIError.invalidURL))
+            return
+        }
+
+        URLSession.shared.dataTask(with: url) { [weak self] data, _, error in
+            guard let self = self else { return }
+            guard let data = data else {
+                DispatchQueue.main.async {
+                    completion(.failure(error ?? APIError.invalidResponse))
+                }
+                return
+            }
+
+            let vkID = track.vkID ?? Int(Date().timeIntervalSince1970)
+            let ownerID = track.ownerID ?? 0
+            let safeBase = "\(ownerID)_\(vkID)"
+                .replacingOccurrences(of: "[^0-9A-Za-z_.-]", with: "_", options: .regularExpression)
+            let fileName = "\(safeBase).mp3"
+            let dest = self.downloadsDirectory.appendingPathComponent(fileName)
+
+            do {
+                try data.write(to: dest)
+                let entry = DownloadedTrack(
+                    id: UUID(),
+                    vkID: vkID,
+                    ownerID: ownerID,
+                    title: track.title,
+                    artist: track.artist,
+                    durationSeconds: track.durationSeconds ?? 0,
+                    fileName: fileName
+                )
+                DispatchQueue.main.async {
+                    if !self.downloadedTracks.contains(where: { $0.vkID == vkID && $0.ownerID == ownerID }) {
+                        self.downloadedTracks.append(entry)
+                        self.saveTracks()
+                    }
+                    completion(.success(()))
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    completion(.failure(error))
+                }
+            }
+        }.resume()
+    }
+
+    func removeDownload(_ track: AudioTrack) {
+        guard let entry = entry(for: track) else { return }
+        try? FileManager.default.removeItem(at: downloadsDirectory.appendingPathComponent(entry.fileName))
+        downloadedTracks.removeAll { $0.id == entry.id }
+        saveTracks()
+    }
+
+    // MARK: - Likes
+
+    func isLiked(_ track: AudioTrack) -> Bool {
+        guard let id = track.vkID else { return false }
+        return likedIDs.contains(id)
+    }
+
+    func setLiked(_ liked: Bool, for track: AudioTrack) {
+        guard let id = track.vkID else { return }
+        if liked { likedIDs.insert(id) } else { likedIDs.remove(id) }
+        saveLikes()
+    }
+
+    // MARK: - Persistence
+
+    private func entry(for track: AudioTrack) -> DownloadedTrack? {
+        downloadedTracks.first {
+            $0.vkID == (track.vkID ?? -1) && $0.ownerID == (track.ownerID ?? -1)
+        }
+    }
+
+    private func loadTracks() {
+        guard let data = UserDefaults.standard.data(forKey: tracksKey),
+              let decoded = try? JSONDecoder().decode([DownloadedTrack].self, from: data) else {
+            return
+        }
+        downloadedTracks = decoded
+    }
+
+    private func saveTracks() {
+        if let data = try? JSONEncoder().encode(downloadedTracks) {
+            UserDefaults.standard.set(data, forKey: tracksKey)
+        }
+    }
+
+    private func loadLikes() {
+        let ids = UserDefaults.standard.array(forKey: likesKey) as? [Int] ?? []
+        likedIDs = Set(ids)
+    }
+
+    private func saveLikes() {
+        UserDefaults.standard.set(Array(likedIDs), forKey: likesKey)
+    }
+
+    private static func formatDuration(_ seconds: Int) -> String {
+        guard seconds > 0 else { return "0:00" }
+        let hours = seconds / 3600
+        let minutes = (seconds % 3600) / 60
+        let secs = seconds % 60
+        if hours > 0 {
+            return String(format: "%d:%02d:%02d", hours, minutes, secs)
+        }
+        return String(format: "%d:%02d", minutes, secs)
+    }
+}

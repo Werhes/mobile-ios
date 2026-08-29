@@ -38,16 +38,18 @@ struct MusicView: View {
                 if #available(iOS 16.0, *) {
                     FullPlayerView(
                         player: player,
-                        onDownload: { track in self.downloadTrack(track) },
-                        onAdd: { track in self.viewModel.addToMyMusic(track) }
+                        isLiked: { track in viewModel.isLiked(track) },
+                        onLike: { track in viewModel.toggleLike(track) },
+                        onDownload: { track in viewModel.download(track) }
                     )
                     .presentationDetents([.large])
                     .presentationDragIndicator(.hidden)
                 } else {
                     FullPlayerView(
                         player: player,
-                        onDownload: { track in self.downloadTrack(track) },
-                        onAdd: { track in self.viewModel.addToMyMusic(track) }
+                        isLiked: { track in viewModel.isLiked(track) },
+                        onLike: { track in viewModel.toggleLike(track) },
+                        onDownload: { track in viewModel.download(track) }
                     )
                 }
             }
@@ -66,6 +68,12 @@ struct MusicView: View {
                 return Alert(
                     title: Text("Добавлено"),
                     message: Text("Трек добавлен в вашу музыку"),
+                    dismissButton: .cancel(Text("OK"))
+                )
+            case .downloaded:
+                return Alert(
+                    title: Text("Скачано"),
+                    message: Text("Трек сохранён в приложении и доступен офлайн."),
                     dismissButton: .cancel(Text("OK"))
                 )
             case .error(let message):
@@ -198,23 +206,27 @@ struct MusicView: View {
         .contentShape(Rectangle())
         .contextMenu {
             Button {
-                downloadTrack(track)
+                if viewModel.isDownloaded(track) {
+                    viewModel.removeDownload(track)
+                } else {
+                    viewModel.download(track)
+                }
             } label: {
-                Label("Скачать", systemImage: "arrow.down.circle")
+                Label(
+                    viewModel.isDownloaded(track) ? "Удалить из скачанного" : "Скачать",
+                    systemImage: viewModel.isDownloaded(track) ? "trash" : "arrow.down.circle"
+                )
             }
 
             Button {
-                viewModel.addToMyMusic(track)
+                viewModel.toggleLike(track)
             } label: {
-                Label("Добавить к себе", systemImage: "plus.circle")
+                Label(
+                    viewModel.isLiked(track) ? "Убрать из моих" : "Добавить к себе",
+                    systemImage: viewModel.isLiked(track) ? "heart.slash" : "plus.circle"
+                )
             }
         }
-    }
-
-    private func downloadTrack(_ track: AudioTrack) {
-        guard let url = track.url else { return }
-        let title = track.artist.isEmpty ? track.title : "\(track.artist) - \(track.title)"
-        DocumentDownloader.downloadAndShare(url: url, title: title, ext: "mp3")
     }
 }
 
@@ -293,8 +305,9 @@ private struct MiniPlayerBar: View {
 
 private struct FullPlayerView: View {
     @ObservedObject var player: MusicPlayer
+    let isLiked: (AudioTrack) -> Bool
+    let onLike: (AudioTrack) -> Void
     let onDownload: (AudioTrack) -> Void
-    let onAdd: (AudioTrack) -> Void
 
     @Environment(\.dismiss) private var dismiss
 
@@ -396,9 +409,12 @@ private struct FullPlayerView: View {
                         Label("Скачать", systemImage: "arrow.down.circle")
                     }
                     Button {
-                        onAdd(track)
+                        onLike(track)
                     } label: {
-                        Label("Добавить к себе", systemImage: "plus.circle")
+                        Label(
+                            isLiked(track) ? "Убрать из моих" : "Добавить к себе",
+                            systemImage: isLiked(track) ? "heart.slash" : "plus.circle"
+                        )
                     }
                 } label: {
                     Image(systemName: "ellipsis")
@@ -452,11 +468,11 @@ private struct FullPlayerView: View {
             Spacer(minLength: 10)
 
             Button {
-                onAdd(track)
+                onLike(track)
             } label: {
-                Image(systemName: "heart")
+                Image(systemName: isLiked(track) ? "heart.fill" : "heart")
                     .font(.system(size: 19, weight: .semibold))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(isLiked(track) ? Color.red : Color.secondary)
                     .frame(width: 44, height: 44)
                     .background(.regularMaterial, in: Circle())
             }
@@ -551,11 +567,11 @@ private struct FullPlayerView: View {
             quickAction("arrow.down.circle", title: "Скачать") {
                 onDownload(track)
             }
-            quickAction("plus.circle", title: "К себе") {
-                onAdd(track)
-            }
-            quickAction("square.and.arrow.up", title: "Поделиться") {
-                onDownload(track)
+            quickAction(
+                isLiked(track) ? "heart.slash" : "heart",
+                title: isLiked(track) ? "Убрать из моих" : "В медиатеку"
+            ) {
+                onLike(track)
             }
         }
     }

@@ -26,6 +26,8 @@ struct MoreView: View {
     enum MoreSheet: Identifiable {
         case settings
         case addAccount
+        case audio
+        case apps
 
         var id: Int { hashValue }
     }
@@ -98,7 +100,7 @@ struct MoreView: View {
                             .labelStyle(SettingsLabelStyle(iconColor: .red))
                     }
 
-                    Button(action: { activeAlert = .unavailable }) {
+                    Button(action: { activeSheet = .audio }) {
                         Label("Аудиозаписи", systemImage: "music.note")
                             .labelStyle(SettingsLabelStyle(iconColor: .appAccent))
                     }
@@ -110,7 +112,7 @@ struct MoreView: View {
                     }
                     .foregroundColor(.primary)
 
-                    Button(action: { activeAlert = .unavailable }) {
+                    Button(action: { activeSheet = .apps }) {
                         Label("Приложения", systemImage: "square.grid.3x3.fill")
                             .labelStyle(SettingsLabelStyle(iconColor: .purple))
                     }
@@ -242,6 +244,14 @@ struct MoreView: View {
                     .environmentObject(auth)
                     .accentColor(Color.appAccent)
                     .tint(Color.appAccent)
+                case .audio:
+                    MusicView()
+                        .accentColor(Color.appAccent)
+                        .tint(Color.appAccent)
+                case .apps:
+                    AppsView()
+                        .accentColor(Color.appAccent)
+                        .tint(Color.appAccent)
                 }
             }
         }
@@ -339,6 +349,60 @@ struct SettingsLabelStyle: LabelStyle {
                 .font(.system(size: 16))
                 .foregroundColor(.primary)
         }
+    }
+}
+
+private struct AppsView: View {
+    var body: some View {
+        NavigationView {
+            List {
+                Section(header: Text("Доступные модули")) {
+                    appRow(icon: "house.fill", color: .blue, title: "Лента", subtitle: "Новости и записи")
+                    appRow(icon: "magnifyingglass", color: .green, title: "Поиск", subtitle: "Люди, группы, музыка")
+                    appRow(icon: "music.note", color: .appAccent, title: "Музыка", subtitle: "Аудиозаписи и офлайн")
+                    appRow(icon: "message.fill", color: .purple, title: "Сообщения", subtitle: "Диалоги и чаты")
+                    appRow(icon: "doc.text.fill", color: .gray, title: "Документы", subtitle: "Файлы и вложения")
+                }
+
+                Section(header: Text("О приложении")) {
+                    appRow(
+                        icon: "info.circle.fill",
+                        color: .secondary,
+                        title: "OpenVK for iOS",
+                        subtitle: versionString
+                    )
+                }
+            }
+            .listStyle(.insetGrouped)
+            .navigationTitle("Приложения")
+            .navigationBarTitleDisplayMode(.inline)
+        }
+        .navigationViewStyle(StackNavigationViewStyle())
+    }
+
+    private func appRow(icon: String, color: Color, title: String, subtitle: String) -> some View {
+        HStack(spacing: 12) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .fill(color)
+                    .frame(width: 28, height: 28)
+                Image(systemName: icon)
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundColor(.white)
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.system(size: 16, weight: .semibold))
+                Text(subtitle)
+                    .font(.system(size: 13))
+                    .foregroundColor(.secondary)
+            }
+        }
+    }
+
+    private var versionString: String {
+        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.1"
+        return "Версия \(version)"
     }
 }
 

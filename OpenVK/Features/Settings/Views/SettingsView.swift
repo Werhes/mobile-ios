@@ -238,6 +238,27 @@ struct AccountSettingsView: View {
     var body: some View {
         List {
             Section(header: Text("Личные данные")) {
+                NavigationLink(destination: EditProfileView()) {
+                    HStack(spacing: 12) {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                .fill(Color.appAccent)
+                                .frame(width: 28, height: 28)
+                            Image(systemName: "pencil")
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundColor(.white)
+                                .frame(width: 22, height: 22)
+                        }
+                        Text("Редактировать профиль")
+                            .font(.system(size: 15))
+                            .foregroundColor(.primary)
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundColor(Color(.tertiaryLabel))
+                    }
+                }
+
                 Button(action: {
                     showInDevelopmentAlert = true
                 }) {
@@ -300,6 +321,78 @@ struct AccountSettingsView: View {
                 dismissButton: .default(Text("OK"))
             )
         }
+    }
+}
+
+struct EditProfileView: View {
+    @EnvironmentObject var auth: AuthService
+    @Environment(\.presentationMode) var presentationMode
+
+    @State private var firstName = ""
+    @State private var lastName = ""
+    @State private var status = ""
+    @State private var about = ""
+    @State private var showSaved = false
+
+    private let storageKey = "edited_profile_fields_v1"
+
+    var body: some View {
+        Form {
+            Section(header: Text("Основное")) {
+                TextField("Имя", text: $firstName)
+                TextField("Фамилия", text: $lastName)
+            }
+
+            Section(header: Text("Дополнительно")) {
+                TextField("Статус", text: $status)
+                TextField("О себе", text: $about)
+            }
+
+            Section {
+                Button(action: save) {
+                    Text("Сохранить")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(.appAccent)
+                        .frame(maxWidth: .infinity)
+                }
+            }
+        }
+        .navigationTitle("Редактировать")
+        .navigationBarTitleDisplayMode(.inline)
+        .onAppear(perform: load)
+        .alert(isPresented: $showSaved) {
+            Alert(
+                title: Text("Сохранено"),
+                message: Text("Изменения профиля сохранены."),
+                dismissButton: .default(Text("OK")) {
+                    presentationMode.wrappedValue.dismiss()
+                }
+            )
+        }
+    }
+
+    private func load() {
+        let user = auth.currentUser
+        let saved = UserDefaults.standard.dictionary(forKey: storageKey) as? [String: String] ?? [:]
+        let nameParts = (user?.displayName ?? "").split(separator: " ").map(String.init)
+
+        firstName = saved["first"] ?? (nameParts.first ?? "")
+        lastName = saved["last"] ?? (nameParts.dropFirst().joined(separator: " "))
+        status = saved["status"] ?? (user?.status ?? "")
+        about = saved["about"] ?? (user?.about ?? "")
+    }
+
+    private func save() {
+        UserDefaults.standard.set(
+            [
+                "first": firstName,
+                "last": lastName,
+                "status": status,
+                "about": about
+            ],
+            forKey: storageKey
+        )
+        showSaved = true
     }
 }
 
