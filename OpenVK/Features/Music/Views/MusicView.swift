@@ -15,6 +15,7 @@ struct MusicView: View {
     @ObservedObject private var offlineStore = OfflineTracksStore.shared
     @State private var searchQuery = ""
     @State private var showFullPlayer = false
+    @State private var showYandexImport = false
 
     var body: some View {
         NavigationView {
@@ -54,6 +55,11 @@ struct MusicView: View {
             }
             .accentColor(Color.appAccent)
             .tint(Color.appAccent)
+        }
+        .sheet(isPresented: $showYandexImport) {
+            YandexImportView()
+                .accentColor(Color.appAccent)
+                .tint(Color.appAccent)
         }
         .onChange(of: searchQuery) { query in
             viewModel.search(query)
@@ -97,6 +103,17 @@ struct MusicView: View {
                 .padding(.horizontal, 16)
                 .padding(.vertical, 8)
             }
+
+            Button {
+                showYandexImport = true
+            } label: {
+                Label("Перенос из Яндекс Музыки", systemImage: "arrow.triangle.swap")
+                    .font(.subheadline)
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
+            .padding(.horizontal, 16)
+            .padding(.bottom, 8)
 
             if viewModel.isLoading {
                 Spacer()

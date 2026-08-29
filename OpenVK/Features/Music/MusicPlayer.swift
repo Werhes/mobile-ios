@@ -10,6 +10,8 @@ import Foundation
 import Combine
 import VLCKit
 import AVFoundation
+import MediaPlayer
+import UIKit
 
 enum RepeatMode: Int {
     case off, all, one
@@ -34,6 +36,7 @@ final class MusicPlayer: NSObject, ObservableObject {
     private override init() {
         super.init()
         player.delegate = self
+        setupRemoteCommands()
     }
 
     var hasCurrentTrack: Bool {
@@ -59,27 +62,31 @@ final class MusicPlayer: NSObject, ObservableObject {
         }
     }
 
-    func playNext() {
-        guard let current = currentTrack, !queue.isEmpty else { return }
+    @discardableResult
+    func playNext() -> Bool {
+        guard let current = currentTrack, !queue.isEmpty else { return false }
         if repeatMode == .one {
             playTrack(current)
-            return
+            return true
         }
         if shuffleEnabled {
             playTrack(queue[Int.random(in: 0..<queue.count)])
-            return
+            return true
         }
         guard let index = queue.firstIndex(of: current) else {
             playTrack(queue[0])
-            return
+            return true
         }
         let nextIndex = index + 1
         if nextIndex < queue.count {
             playTrack(queue[nextIndex])
+            return true
         } else if repeatMode == .all {
             playTrack(queue[0])
+            return true
         }
         // repeat off + конец очереди: ничего не делаем
+        return false
     }
 
     func playPrevious() {
@@ -114,6 +121,7 @@ final class MusicPlayer: NSObject, ObservableObject {
 
     func seek(to seconds: Double) {
         player.time = VLCTime(int: Int32(seconds * 1000))
+        updateNowPlaying()
     }
 
     func stop() {
@@ -141,6 +149,7 @@ final class MusicPlayer: NSObject, ObservableObject {
             isLoading = true
             activateAudioSession()
             player.play()
+            updateNowPlaying()
         }
     }
 
@@ -152,6 +161,69 @@ final class MusicPlayer: NSObject, ObservableObject {
         } catch {
             print("Failed to activate audio session: \(error)")
         }
+    }
+
+    // MARK: - Lock screen / Control Center (Now Playing + Remote Commands)
+
+    private func setupRemoteCommands() {
+        let center = MPRemoteCommandCenter.shared()
+
+        center.playCommand.addTarget { [weak self] _ in
+            DispatchQueue.main.async { self?.togglePlayPause() }
+            return .success
+        }
+        center.pauseCommand.addTarget { [weak self] _ in
+            DispatchQueue.main.async { self?.togglePlayPause() }
+            return .success
+        }
+        center.nextTrackCommand.addTarget { [weak self] _ in
+            DispatchQueue.main.async { self?.playNext() }
+            return .success
+        }
+        center.previousTrackCommand.addTarget { [weak self] _ in
+            DispatchQueue.main.async { self?.playPrevious() }
+            return .success
+        }
+        center.changePlaybackPositionCommand.addTarget { [weak self] event in
+            guard let event = event as? MPChangePlaybackPositionCommandEvent else {
+                return .commandFailed
+            }
+            DispatchQueue.main.async { self?.seek(to: event.positionTime) }
+            return .success
+        }
+    }
+
+    private func updateNowPlaying() {
+        guard let track = currentTrack else {
+            MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
+            return
+        }
+
+        var info: [String: Any] = [
+            MPMediaItemPropertyTitle: track.title,
+            MPMediaItemPropertyArtist: track.artist,
+            MPMediaItemPropertyPlaybackDuration: duration,
+            MPNowPlayingInfoPropertyElapsedPlaybackTime: currentTime,
+            MPNowPlayingInfoPropertyPlaybackRate: isPlaying ? 1.0 : 0.0
+        ]
+
+        MPNowPlayingInfoCenter.default().nowPlayingInfo = info
+
+        // Асинхронно подгружаем обложку iTunes для lock screen
+        guard let artURL = ITunesArtworkLoader.shared.artworkURL(for: track) else {
+            ITunesArtworkLoader.shared.load(track)
+            return
+        }
+
+        URLSession.shared.dataTask(with: artURL) { [weak self] data, _, _ in
+            guard let data = data, let image = UIImage(data: data) else { return }
+            let artwork = MPMediaItemArtwork(boundsSize: image.size) { _ in image }
+            DispatchQueue.main.async {
+                guard self?.currentTrack == track else { return }
+                info[MPMediaItemPropertyArtwork] = artwork
+                MPNowPlayingInfoCenter.default().nowPlayingInfo = info
+            }
+        }.resume()
     }
 }
 
@@ -172,9 +244,16 @@ extension MusicPlayer: VLCMediaPlayerDelegate {
             case .stopped, .stopping, .error:
                 self.isLoading = false
                 self.isPlaying = false
+            case .ended:
+                // Трек закончился — автоматически включаем следующий
+                let advanced = self.playNext()
+                if !advanced {
+                    self.isPlaying = false
+                }
             @unknown default:
                 break
             }
+            self.updateNowPlaying()
         }
     }
 
@@ -191,6 +270,7 @@ extension MusicPlayer: VLCMediaPlayerDelegate {
                 if let media = self.player.media {
                     self.duration = Double(media.length.value?.doubleValue ?? 0) / 1000.0
                 }
+                self.updateNowPlaying()
             }
         }
     }

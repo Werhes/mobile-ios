@@ -122,6 +122,11 @@
 		24A200000000000000000012 /* MusicPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24A200000000000000000002 /* MusicPlayer.swift */; };
 		24A200000000000000000013 /* MusicViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24A200000000000000000003 /* MusicViewModel.swift */; };
 		24A200000000000000000014 /* MusicView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24A200000000000000000004 /* MusicView.swift */; };
+		24A300000000000000000002 /* YandexMusicModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24A300000000000000000012 /* YandexMusicModels.swift */; };
+		24A300000000000000000003 /* YandexMusicService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24A300000000000000000013 /* YandexMusicService.swift */; };
+		24A300000000000000000004 /* YandexMusicAuthView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24A300000000000000000014 /* YandexMusicAuthView.swift */; };
+		24A300000000000000000005 /* OpenVKAudioUploader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24A300000000000000000015 /* OpenVKAudioUploader.swift */; };
+		24A300000000000000000006 /* YandexImportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24A300000000000000000016 /* YandexImportView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -262,6 +267,11 @@
 		24A200000000000000000002 /* MusicPlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicPlayer.swift; sourceTree = "<group>"; };
 		24A200000000000000000003 /* MusicViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicViewModel.swift; sourceTree = "<group>"; };
 		24A200000000000000000004 /* MusicView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicView.swift; sourceTree = "<group>"; };
+		24A300000000000000000012 /* YandexMusicModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YandexMusicModels.swift; sourceTree = "<group>"; };
+		24A300000000000000000013 /* YandexMusicService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YandexMusicService.swift; sourceTree = "<group>"; };
+		24A300000000000000000014 /* YandexMusicAuthView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YandexMusicAuthView.swift; sourceTree = "<group>"; };
+		24A300000000000000000015 /* OpenVKAudioUploader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenVKAudioUploader.swift; sourceTree = "<group>"; };
+		24A300000000000000000016 /* YandexImportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YandexImportView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -817,6 +827,7 @@
 				24A200000000000000000002 /* MusicPlayer.swift */,
 				24A200000000000000000022 /* ViewModels */,
 				24A200000000000000000023 /* Views */,
+				24A300000000000000000001 /* YandexImport */,
 			);
 			path = Music;
 			sourceTree = "<group>";
@@ -835,6 +846,18 @@
 				24A200000000000000000004 /* MusicView.swift */,
 			);
 			path = Views;
+			sourceTree = "<group>";
+		};
+		24A300000000000000000001 /* YandexImport */ = {
+			isa = PBXGroup;
+			children = (
+				24A300000000000000000012 /* YandexMusicModels.swift */,
+				24A300000000000000000013 /* YandexMusicService.swift */,
+				24A300000000000000000014 /* YandexMusicAuthView.swift */,
+				24A300000000000000000015 /* OpenVKAudioUploader.swift */,
+				24A300000000000000000016 /* YandexImportView.swift */,
+			);
+			path = YandexImport;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -1082,6 +1105,11 @@
 				24A200000000000000000012 /* MusicPlayer.swift in Sources */,
 				24A200000000000000000013 /* MusicViewModel.swift in Sources */,
 				24A200000000000000000014 /* MusicView.swift in Sources */,
+				24A300000000000000000002 /* YandexMusicModels.swift in Sources */,
+				24A300000000000000000003 /* YandexMusicService.swift in Sources */,
+				24A300000000000000000004 /* YandexMusicAuthView.swift in Sources */,
+				24A300000000000000000005 /* OpenVKAudioUploader.swift in Sources */,
+				24A300000000000000000006 /* YandexImportView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
