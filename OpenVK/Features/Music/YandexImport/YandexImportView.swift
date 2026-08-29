@@ -25,6 +25,8 @@ struct YandexImportView: View {
     @State private var tracks: [YandexTrack] = []
     @State private var selectedIDs: Set<Int> = []
     @State private var errorMessage: ImportError?
+    @State private var pendingToken: String?
+    @State private var loginSucceeded = false
 
     // Progress
     @State private var totalToTransfer = 0
@@ -59,7 +61,6 @@ struct YandexImportView: View {
             }
         }
         .navigationViewStyle(StackNavigationViewStyle())
-        .onAppear { startIfLoggedIn() }
         .alert(item: $errorMessage) { error in
             Alert(
                 title: Text("Ошибка"),
@@ -73,32 +74,56 @@ struct YandexImportView: View {
 
     private var authView: some View {
         VStack(spacing: 12) {
+            // WebView для входа. Токен сохраняется, но далее переход делается
+            // только по кнопке «Далее» (без автоматического запуска).
             YandexMusicAuthView { token in
                 handle(token: token)
             }
             .ignoresSafeArea()
 
-            Text("Войдите в аккаунт Яндекс Музыки. Приложение автоматически определит успешный вход.")
-                .font(.footnote)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-                .padding(12)
+            if loginSucceeded {
+                Label("Вход выполнен", systemImage: "checkmark.circle.fill")
+                    .font(.subheadline.weight(.medium))
+                    .foregroundColor(.green)
+            } else {
+                Text("Войдите в аккаунт Яндекс Музыки, затем нажмите «Далее».")
+                    .font(.footnote)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+
+            Button {
+                proceed()
+            } label: {
+                Text("Далее")
+                    .fontWeight(.semibold)
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+            .padding(.horizontal, 16)
+            .padding(.bottom, 12)
         }
     }
 
-    private func startIfLoggedIn() {
-        guard case .auth = phase else { return }
-        if let token = YandexMusicService.storedToken {
-            handle(token: token)
-        }
-    }
-
+    /// Токен получен из WebView — только запоминаем его и ждём нажатия «Далее».
     private func handle(token raw: String) {
         guard let token = YandexMusicService.cleanToken(raw) else {
             errorMessage = ImportError(message: YandexError.noToken.localizedDescription)
             return
         }
         YandexMusicService.storedToken = token
+        pendingToken = token
+        loginSucceeded = true
+    }
+
+    /// Пользователь нажал «Далее» — начинаем загрузку треков.
+    private func proceed() {
+        guard let token = pendingToken ?? YandexMusicService.storedToken else {
+            errorMessage = ImportError(message: "Сначала войдите в аккаунт Яндекс Музыки.")
+            return
+        }
+        pendingToken = nil
+        loginSucceeded = false
         phase = .loading
         loadTracks(token: token)
     }
