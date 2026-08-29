@@ -105,15 +105,27 @@ struct YandexImportView: View {
         }
     }
 
-    /// Токен получен из WebView — только запоминаем его и ждём нажатия «Далее».
+    /// Токен получен из WebView — запоминаем и ПРОВЕРЯЕМ через API.
+    /// «Вход выполнен» показываем только после успешного подтверждения токена,
+    /// чтобы не отображать ложный статус до реального входа.
     private func handle(token raw: String) {
         guard let token = YandexMusicService.cleanToken(raw) else {
             errorMessage = ImportError(message: YandexError.noToken.localizedDescription)
             return
         }
-        YandexMusicService.storedToken = token
         pendingToken = token
-        loginSucceeded = true
+        service.fetchUid(token: token) { [self] result in
+            switch result {
+            case .success:
+                YandexMusicService.storedToken = token
+                self.loginSucceeded = true
+            case .failure(let error):
+                self.pendingToken = nil
+                self.errorMessage = ImportError(
+                    message: "Не удалось подтвердить вход в Яндекс Музыку: \(error.localizedDescription)"
+                )
+            }
+        }
     }
 
     /// Пользователь нажал «Далее» — начинаем загрузку треков.

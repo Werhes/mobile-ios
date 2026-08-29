@@ -27,7 +27,7 @@ struct YandexMusicAuthView: UIViewRepresentable {
         webView.navigationDelegate = context.coordinator
         webView.allowsBackForwardNavigationGestures = true
 
-        if let url = URL(string: YandexConstants.oauthAuthorizeURL) {
+        if let url = URL(string: YandexConstants.musicLoginURL) {
             webView.load(URLRequest(url: url))
         }
         return webView
@@ -94,21 +94,23 @@ struct YandexMusicAuthView: UIViewRepresentable {
         }
 
         private static func tokenFromPayload(_ payload: String) -> String? {
-            // Сначала ищем явный access_token=
-            if let range = payload.range(of: "access_token=") {
-                let rest = payload[range.upperBound...]
-                let token = rest.split(whereSeparator: { $0 == "&" || $0 == "\n" || $0 == "," })
-                    .first.map(String.init)
-                if let token = YandexMusicService.cleanToken(token) {
+            let lines = payload.components(separatedBy: "\n")
+            for line in lines {
+                guard let eq = line.firstIndex(of: "=") else { continue }
+                let key = String(line[..<eq])
+                let value = String(line[line.index(after: eq)...])
+                let lowerKey = key.lowercased()
+                // Принимаем значение только из «токеноподобных» ключей,
+                // чтобы не ловить случайные строки из localStorage.
+                let looksRelevant =
+                    lowerKey.contains("token") ||
+                    lowerKey.contains("ymusic") ||
+                    lowerKey.contains("access") ||
+                    lowerKey.contains("auth")
+                guard looksRelevant else { continue }
+                if let token = YandexMusicService.cleanToken(value) {
                     return token
                 }
-            }
-            // Иначе ищем любую длинную base64-подобную строку-токен
-            let pattern = #"[A-Za-z0-9_\-\.]{25,}"#
-            if let regex = try? NSRegularExpression(pattern: pattern),
-               let match = regex.firstMatch(in: payload, range: NSRange(payload.startIndex..., in: payload)) {
-                let candidate = (payload as NSString).substring(with: match.range)
-                return YandexMusicService.cleanToken(candidate)
             }
             return nil
         }

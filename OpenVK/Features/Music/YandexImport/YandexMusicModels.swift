@@ -12,11 +12,9 @@ import Foundation
 // MARK: - Константы
 
 enum YandexConstants {
-    /// Публичный OAuth client_id, используемый мобильным приложением Яндекс Музыки
-    /// в открытых проектах. Позволяет получить токен через oauth.yandex.ru.
-    static let clientID = "23cabbbdc6cd41889bfd28c17d1fd20c"
-    static let oauthAuthorizeURL =
-        "https://oauth.yandex.ru/authorize?response_type=token&client_id=\(clientID)"
+    /// Открываем реальный сайт Яндекс Музыки. После входа пользователя
+    /// OAuth-токен доступен в localStorage домена music.yandex.ru.
+    static let musicLoginURL = "https://music.yandex.ru/"
     static let tokenKey = "yandex.music.token"
     static let lastLoginKey = "yandex.music.last_login"
 }
