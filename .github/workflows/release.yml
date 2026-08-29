@@ -73,27 +73,30 @@ jobs:
             CODE_SIGNING_REQUIRED=NO \
             build
 
-      - name: Package .app into zip
+      - name: Package .app into .ipa
         run: |
           APP_PATH=$(find build/Build/Products/Release-iphoneos -maxdepth 1 -name '*.app' | head -n 1)
           if [ -z "$APP_PATH" ]; then
             echo "::error::App bundle not found in build output"
             exit 1
           fi
-          APP_DIR=$(dirname "$APP_PATH")
           APP_NAME=$(basename "$APP_PATH" .app)
-          ZIP_NAME="${APP_NAME}-iOS.zip"
-          cd "$APP_DIR"
-          ditto -c -k --sequesterRsrc --keepParent "${APP_NAME}.app" "${ZIP_NAME}"
-          echo "ZIP_PATH=${APP_DIR}/${ZIP_NAME}" >> "$GITHUB_ENV"
-          echo "ZIP_NAME=${ZIP_NAME}" >> "$GITHUB_ENV"
+          # Собираем корректную структуру .ipa: Payload/<App>.app
+          rm -rf Payload
+          mkdir Payload
+          cp -R "$APP_PATH" Payload/
+          IPA_NAME="${APP_NAME}-iOS.ipa"
+          ditto -c -k --sequesterRsrc --keepParent Payload "${IPA_NAME}"
+          rm -rf Payload
+          echo "IPA_PATH=${PWD}/${IPA_NAME}" >> "$GITHUB_ENV"
+          echo "IPA_NAME=${IPA_NAME}" >> "$GITHUB_ENV"
           ls -la
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
           name: OpenVK-iOS-build
-          path: ${{ env.ZIP_PATH }}
+          path: ${{ env.IPA_PATH }}
           if-no-files-found: error
 
       # --- Вычисляем тег и готовим данные релиза ---
@@ -126,4 +129,4 @@ jobs:
           name: ${{ github.event.inputs.release_name != '' && github.event.inputs.release_name || env.TAG }}
           body: ${{ github.event.inputs.description }}
           prerelease: ${{ github.event.inputs.prerelease == 'true' }}
-          files: ${{ env.ZIP_PATH }}
+          files: ${{ env.IPA_PATH }}

@@ -34,13 +34,23 @@ struct MusicView: View {
         }
         .navigationViewStyle(StackNavigationViewStyle())
         .sheet(isPresented: $showFullPlayer) {
-            FullPlayerView(
-                player: player,
-                onDownload: { track in self.downloadTrack(track) },
-                onAdd: { track in self.viewModel.addToMyMusic(track) }
-            )
-            .presentationDetents([.large])
-            .presentationDragIndicator(.hidden)
+            Group {
+                if #available(iOS 16.0, *) {
+                    FullPlayerView(
+                        player: player,
+                        onDownload: { track in self.downloadTrack(track) },
+                        onAdd: { track in self.viewModel.addToMyMusic(track) }
+                    )
+                    .presentationDetents([.large])
+                    .presentationDragIndicator(.hidden)
+                } else {
+                    FullPlayerView(
+                        player: player,
+                        onDownload: { track in self.downloadTrack(track) },
+                        onAdd: { track in self.viewModel.addToMyMusic(track) }
+                    )
+                }
+            }
             .accentColor(Color.appAccent)
             .tint(Color.appAccent)
         }
