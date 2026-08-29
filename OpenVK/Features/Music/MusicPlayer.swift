@@ -86,16 +86,17 @@ final class MusicPlayer: NSObject, ObservableObject {
     private func playTrack(_ track: AudioTrack) {
         guard let urlString = track.url, let url = URL(string: urlString) else { return }
 
-        let media = VLCMedia(url: url)
-        media.addOption("--network-caching=2000")
-        player.media = media
+        if let media = VLCMedia(url: url) {
+            media.addOption("--network-caching=2000")
+            player.media = media
 
-        currentTrack = track
-        currentTime = 0
-        duration = 0
-        isLoading = true
-        activateAudioSession()
-        player.play()
+            currentTrack = track
+            currentTime = 0
+            duration = 0
+            isLoading = true
+            activateAudioSession()
+            player.play()
+        }
     }
 
     private func activateAudioSession() {
