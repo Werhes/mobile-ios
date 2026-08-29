@@ -388,7 +388,7 @@ final class ITunesArtworkLoader: ObservableObject {
 
     func artworkURL(for track: AudioTrack) -> URL? {
         let key = Self.key(for: track)
-        if let cached = cache.object(forKey: key as NSString), let url = URL(string: cached) {
+        if let cached = cache.object(forKey: key as NSString), let url = URL(string: cached as String) {
             return url
         }
         return loadedURLs[key]
