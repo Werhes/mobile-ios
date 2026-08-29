@@ -170,7 +170,7 @@ struct MusicView: View {
         HStack(spacing: 12) {
             Button(action: {
                 HapticManager.impact(.light)
-                if player.currentTrack == track {
+                if isCurrent(track) {
                     player.togglePlayPause()
                 } else {
                     player.play(track: track, in: viewModel.tracks)
@@ -179,7 +179,7 @@ struct MusicView: View {
                 ZStack {
                     RoundedRectangle(cornerRadius: 8)
                         .fill(track.color)
-                    if player.currentTrack == track && (player.isLoading || player.isPlaying) {
+                    if isCurrent(track) && (player.isLoading || player.isPlaying) {
                         if player.isLoading {
                             ProgressView()
                                 .progressViewStyle(CircularProgressViewStyle(tint: .white))
@@ -201,10 +201,18 @@ struct MusicView: View {
             .buttonStyle(PlainButtonStyle())
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(track.title)
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundColor(player.currentTrack == track ? .appAccent : .primary)
-                    .lineLimit(1)
+                HStack(spacing: 5) {
+                    // Индикатор «сейчас играет» — сохраняется при возврате в раздел
+                    if isCurrent(track) && player.isPlaying {
+                        Image(systemName: "waveform")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundColor(.appAccent)
+                    }
+                    Text(track.title)
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundColor(isCurrent(track) ? .appAccent : .primary)
+                        .lineLimit(1)
+                }
                 Text(track.artist)
                     .font(.system(size: 13))
                     .foregroundColor(.secondary)
@@ -213,9 +221,17 @@ struct MusicView: View {
 
             Spacer()
 
-            Text(track.duration)
-                .font(.system(size: 13))
-                .foregroundColor(.secondary)
+            HStack(spacing: 6) {
+                // Индикатор лайка
+                if offlineStore.isLiked(track) {
+                    Image(systemName: "heart.fill")
+                        .font(.system(size: 12))
+                        .foregroundColor(.appAccent)
+                }
+                Text(track.duration)
+                    .font(.system(size: 13))
+                    .foregroundColor(.secondary)
+            }
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 8)
@@ -243,6 +259,17 @@ struct MusicView: View {
                 )
             }
         }
+    }
+
+    /// Сравнение текущего трека по стабильной идентичности (vkID+ownerID),
+    /// чтобы индикатор «сейчас играет» сохранялся при возврате в раздел и смене вкладки.
+    private func isCurrent(_ track: AudioTrack) -> Bool {
+        guard let current = player.currentTrack else { return false }
+        if let trackID = track.vkID, let currentID = current.vkID,
+           let trackOwner = track.ownerID, let currentOwner = current.ownerID {
+            return trackID == currentID && trackOwner == currentOwner
+        }
+        return track.title == current.title && track.artist == current.artist
     }
 }
 

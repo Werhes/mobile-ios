@@ -33,6 +33,10 @@ final class MusicPlayer: NSObject, ObservableObject {
 
     private let player = VLCMediaPlayer()
 
+    /// Момент последнего запуска воспроизведения. Используется, чтобы отличить
+    /// естественное завершение трека от переходного .stopped при смене медиа.
+    private var lastPlayRequestTime = Date.distantPast
+
     private override init() {
         super.init()
         player.delegate = self
@@ -148,6 +152,7 @@ final class MusicPlayer: NSObject, ObservableObject {
             duration = 0
             isLoading = true
             activateAudioSession()
+            lastPlayRequestTime = Date()
             player.play()
             updateNowPlaying()
         }
@@ -244,12 +249,9 @@ extension MusicPlayer: VLCMediaPlayerDelegate {
             case .stopped, .stopping, .error:
                 self.isLoading = false
                 self.isPlaying = false
-            case .ended:
-                // Трек закончился — автоматически включаем следующий
-                let advanced = self.playNext()
-                if !advanced {
-                    self.isPlaying = false
-                }
+                // Трек мог закончиться естественным образом — автопереход дальше.
+                // Если это временный .stopped из-за смены медиа, переход проигнорируется.
+                self.handlePossibleEnd()
             @unknown default:
                 break
             }
@@ -272,6 +274,20 @@ extension MusicPlayer: VLCMediaPlayerDelegate {
                 }
                 self.updateNowPlaying()
             }
+        }
+    }
+
+    /// Проверяет, завершился ли текущий трек, и если да — включает следующий.
+    /// Переходный .stopped (который возникает при смене медиа внутри playTrack)
+    /// случается менее чем через секунду после запуска и игнорируется.
+    private func handlePossibleEnd() {
+        guard currentTrack != nil else { return }
+        let elapsed = Date().timeIntervalSince(lastPlayRequestTime)
+        guard elapsed >= 1.0 else { return }
+        lastPlayRequestTime = Date()
+        let advanced = playNext()
+        if !advanced {
+            isPlaying = false
         }
     }
 }

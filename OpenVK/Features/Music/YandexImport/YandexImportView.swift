@@ -104,8 +104,7 @@ struct YandexImportView: View {
     }
 
     private func loadTracks(token: String) {
-        service.fetchUid(token: token) { [weak self] result in
-            guard let self = self else { return }
+        service.fetchUid(token: token) { [self] result in
             switch result {
             case .success(let uid):
                 self.fetchLikedTracks(token: token, uid: uid)
@@ -117,8 +116,7 @@ struct YandexImportView: View {
     }
 
     private func fetchLikedTracks(token: String, uid: Int) {
-        service.fetchLikedTracks(token: token, uid: uid) { [weak self] result in
-            guard let self = self else { return }
+        service.fetchLikedTracks(token: token, uid: uid) { [self] result in
             switch result {
             case .success(let tracks):
                 self.tracks = tracks
@@ -284,8 +282,7 @@ struct YandexImportView: View {
         token: String,
         completion: @escaping (TransferOutcome) -> Void
     ) {
-        service.fetchDownloadURL(token: token, trackId: track.id) { [weak self] result in
-            guard let self = self else { return }
+        service.fetchDownloadURL(token: token, trackId: track.id) { [self] result in
             switch result {
             case .success(let urlString):
                 guard let urlString = urlString else {
@@ -304,8 +301,7 @@ struct YandexImportView: View {
         track: YandexTrack,
         completion: @escaping (TransferOutcome) -> Void
     ) {
-        service.downloadTrack(from: urlString) { [weak self] result in
-            guard let self = self else { return }
+        service.downloadTrack(from: urlString) { [self] result in
             switch result {
             case .success(let data):
                 let title = track.title ?? "Без названия"
