@@ -426,4 +426,3 @@ final class ITunesArtworkLoader: ObservableObject {
         "\(track.artist.lowercased())|\(track.title.lowercased())"
     }
 }
-}
