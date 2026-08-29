@@ -11,6 +11,10 @@ import Combine
 import VLCKit
 import AVFoundation
 
+enum RepeatMode: Int {
+    case off, all, one
+}
+
 final class MusicPlayer: NSObject, ObservableObject {
 
     static let shared = MusicPlayer()
@@ -22,6 +26,8 @@ final class MusicPlayer: NSObject, ObservableObject {
     @Published var currentTime: Double = 0
     @Published var duration: Double = 0
     @Published var isDraggingSlider = false
+    @Published var repeatMode: RepeatMode = .off
+    @Published var shuffleEnabled = false
 
     private let player = VLCMediaPlayer()
 
@@ -55,16 +61,55 @@ final class MusicPlayer: NSObject, ObservableObject {
 
     func playNext() {
         guard let current = currentTrack, !queue.isEmpty else { return }
-        if let index = queue.firstIndex(of: current), index + 1 < queue.count {
-            playTrack(queue[index + 1])
+        if repeatMode == .one {
+            playTrack(current)
+            return
         }
+        if shuffleEnabled {
+            playTrack(queue[Int.random(in: 0..<queue.count)])
+            return
+        }
+        guard let index = queue.firstIndex(of: current) else {
+            playTrack(queue[0])
+            return
+        }
+        let nextIndex = index + 1
+        if nextIndex < queue.count {
+            playTrack(queue[nextIndex])
+        } else if repeatMode == .all {
+            playTrack(queue[0])
+        }
+        // repeat off + конец очереди: ничего не делаем
     }
 
     func playPrevious() {
         guard let current = currentTrack, !queue.isEmpty else { return }
-        if let index = queue.firstIndex(of: current), index - 1 >= 0 {
-            playTrack(queue[index - 1])
+        if repeatMode == .one {
+            playTrack(current)
+            return
         }
+        if shuffleEnabled {
+            playTrack(queue[Int.random(in: 0..<queue.count)])
+            return
+        }
+        guard let index = queue.firstIndex(of: current) else {
+            playTrack(queue[0])
+            return
+        }
+        let prevIndex = index - 1
+        if prevIndex >= 0 {
+            playTrack(queue[prevIndex])
+        } else if repeatMode == .all {
+            playTrack(queue[queue.count - 1])
+        }
+    }
+
+    func toggleShuffle() {
+        shuffleEnabled.toggle()
+    }
+
+    func cycleRepeatMode() {
+        repeatMode = RepeatMode(rawValue: repeatMode.rawValue + 1) ?? .off
     }
 
     func seek(to seconds: Double) {
@@ -329,4 +374,56 @@ final class OfflineTracksStore: ObservableObject {
         }
         return String(format: "%d:%02d", minutes, secs)
     }
+}
+
+// MARK: - Обложки через iTunes API
+
+final class ITunesArtworkLoader: ObservableObject {
+
+    static let shared = ITunesArtworkLoader()
+
+    @Published private(set) var loadedURLs: [String: URL] = [:]
+
+    private let cache = NSCache<NSString, NSString>()
+
+    func artworkURL(for track: AudioTrack) -> URL? {
+        let key = Self.key(for: track)
+        if let cached = cache.object(forKey: key as NSString), let url = URL(string: cached) {
+            return url
+        }
+        return loadedURLs[key]
+    }
+
+    func load(_ track: AudioTrack) {
+        let key = Self.key(for: track)
+        if artworkURL(for: track) != nil { return }
+
+        var components = URLComponents(string: "https://itunes.apple.com/search")!
+        components.queryItems = [
+            URLQueryItem(name: "term", value: "\(track.artist) \(track.title)"),
+            URLQueryItem(name: "media", value: "music"),
+            URLQueryItem(name: "entity", value: "song"),
+            URLQueryItem(name: "limit", value: "1")
+        ]
+        guard let url = components.url else { return }
+
+        URLSession.shared.dataTask(with: url) { [weak self] data, _, _ in
+            guard let self = self, let data = data,
+                  let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+                  let results = json["results"] as? [[String: Any]],
+                  let first = results.first,
+                  let art100 = first["artworkUrl100"] as? String else { return }
+            let art = art100.replacingOccurrences(of: "100x100", with: "600x600")
+            guard let url = URL(string: art) else { return }
+            DispatchQueue.main.async {
+                self.cache.setObject(art as NSString, forKey: key as NSString)
+                self.loadedURLs[key] = url
+            }
+        }.resume()
+    }
+
+    private static func key(for track: AudioTrack) -> String {
+        "\(track.artist.lowercased())|\(track.title.lowercased())"
+    }
+}
 }

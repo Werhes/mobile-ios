@@ -1151,7 +1151,6 @@ struct AboutAppView: View {
                 Section {
                     authorRow(name: "Ника Фалалеева", handle: "nikanikoo", role: "Разработчик приложения")
                     authorRow(name: "Владимир Баринов", handle: "Veselcraft", role: "CEO OpenVK")
-                    authorRow(name: "Лёша Шапчиц", handle: "Werhes", role: "2-ой разработчик приложения")
 
                     NavigationLink(destination: SupportersListView()) {
                         HStack(spacing: 12) {

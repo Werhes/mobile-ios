@@ -12,6 +12,7 @@ struct MusicView: View {
 
     @StateObject private var viewModel = MusicViewModel()
     @ObservedObject private var player = MusicPlayer.shared
+    @ObservedObject private var offlineStore = OfflineTracksStore.shared
     @State private var searchQuery = ""
     @State private var showFullPlayer = false
 
@@ -38,7 +39,6 @@ struct MusicView: View {
                 if #available(iOS 16.0, *) {
                     FullPlayerView(
                         player: player,
-                        isLiked: { track in viewModel.isLiked(track) },
                         onLike: { track in viewModel.toggleLike(track) },
                         onDownload: { track in viewModel.download(track) }
                     )
@@ -47,7 +47,6 @@ struct MusicView: View {
                 } else {
                     FullPlayerView(
                         player: player,
-                        isLiked: { track in viewModel.isLiked(track) },
                         onLike: { track in viewModel.toggleLike(track) },
                         onDownload: { track in viewModel.download(track) }
                     )
@@ -206,15 +205,15 @@ struct MusicView: View {
         .contentShape(Rectangle())
         .contextMenu {
             Button {
-                if viewModel.isDownloaded(track) {
+                if offlineStore.isDownloaded(track) {
                     viewModel.removeDownload(track)
                 } else {
                     viewModel.download(track)
                 }
             } label: {
                 Label(
-                    viewModel.isDownloaded(track) ? "Удалить из скачанного" : "Скачать",
-                    systemImage: viewModel.isDownloaded(track) ? "trash" : "arrow.down.circle"
+                    offlineStore.isDownloaded(track) ? "Удалить из скачанного" : "Скачать",
+                    systemImage: offlineStore.isDownloaded(track) ? "trash" : "arrow.down.circle"
                 )
             }
 
@@ -222,8 +221,8 @@ struct MusicView: View {
                 viewModel.toggleLike(track)
             } label: {
                 Label(
-                    viewModel.isLiked(track) ? "Убрать из моих" : "Добавить к себе",
-                    systemImage: viewModel.isLiked(track) ? "heart.slash" : "plus.circle"
+                    offlineStore.isLiked(track) ? "Убрать из моих" : "Добавить к себе",
+                    systemImage: offlineStore.isLiked(track) ? "heart.slash" : "plus.circle"
                 )
             }
         }
@@ -240,14 +239,20 @@ private struct MiniPlayerBar: View {
         HStack(spacing: 12) {
             Button(action: onTap) {
                 HStack(spacing: 12) {
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 6)
-                            .fill(player.currentTrack?.color ?? .appAccent)
-                        Image(systemName: "music.note")
-                            .font(.system(size: 18))
-                            .foregroundColor(.white)
+                    if let currentTrack = player.currentTrack {
+                        AsyncArtworkView(track: currentTrack)
+                            .frame(width: 44, height: 44)
+                            .clipShape(RoundedRectangle(cornerRadius: 6))
+                    } else {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 6)
+                                .fill(Color.appAccent)
+                            Image(systemName: "music.note")
+                                .font(.system(size: 18))
+                                .foregroundColor(.white)
+                        }
+                        .frame(width: 44, height: 44)
                     }
-                    .frame(width: 44, height: 44)
 
                     VStack(alignment: .leading, spacing: 2) {
                         Text(player.currentTrack?.title ?? "")
@@ -305,7 +310,7 @@ private struct MiniPlayerBar: View {
 
 private struct FullPlayerView: View {
     @ObservedObject var player: MusicPlayer
-    let isLiked: (AudioTrack) -> Bool
+    @ObservedObject var offlineStore = OfflineTracksStore.shared
     let onLike: (AudioTrack) -> Void
     let onDownload: (AudioTrack) -> Void
 
@@ -313,6 +318,10 @@ private struct FullPlayerView: View {
 
     private var track: AudioTrack? { player.currentTrack }
     private var accent: Color { track?.color ?? .appAccent }
+
+    private func isLiked(_ track: AudioTrack) -> Bool {
+        offlineStore.isLiked(track)
+    }
 
     var body: some View {
         ZStack {
@@ -430,25 +439,14 @@ private struct FullPlayerView: View {
     // MARK: - Обложка
 
     private func artwork(_ track: AudioTrack) -> some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: [track.color, track.color.opacity(0.72)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-            Image(systemName: "music.note")
-                .font(.system(size: 84, weight: .semibold))
-                .foregroundColor(.white.opacity(0.92))
-        }
-        .frame(width: 290, height: 290)
-        .overlay {
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .stroke(.white.opacity(0.12), lineWidth: 0.7)
-        }
-        .shadow(color: .black.opacity(0.35), radius: 26, y: 14)
+        AsyncArtworkView(track: track)
+            .frame(width: 290, height: 290)
+            .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    .stroke(.white.opacity(0.12), lineWidth: 0.7)
+            }
+            .shadow(color: .black.opacity(0.35), radius: 26, y: 14)
     }
 
     // MARK: - Метаданные
@@ -511,6 +509,7 @@ private struct FullPlayerView: View {
 
     private var primaryControls: some View {
         HStack(spacing: 0) {
+            shuffleButton
             Spacer()
             transportButton("backward.fill", label: "Предыдущий трек") {
                 player.playPrevious()
@@ -522,6 +521,7 @@ private struct FullPlayerView: View {
                 player.playNext()
             }
             Spacer()
+            repeatButton
         }
         .padding(.vertical, 8)
         .padding(.horizontal, 10)
@@ -558,6 +558,39 @@ private struct FullPlayerView: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel(label)
+    }
+
+    private var shuffleButton: some View {
+        Button {
+            player.toggleShuffle()
+        } label: {
+            Image(systemName: "shuffle")
+                .font(.system(size: 19, weight: .semibold))
+                .foregroundStyle(player.shuffleEnabled ? Color.primary : Color.secondary)
+                .frame(width: 44, height: 44)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Перемешать")
+    }
+
+    private var repeatButton: some View {
+        Button {
+            player.cycleRepeatMode()
+        } label: {
+            Image(systemName: repeatIcon)
+                .font(.system(size: 19, weight: .semibold))
+                .foregroundStyle(player.repeatMode != .off ? Color.primary : Color.secondary)
+                .frame(width: 44, height: 44)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Повтор")
+    }
+
+    private var repeatIcon: String {
+        switch player.repeatMode {
+        case .off, .all: return "repeat"
+        case .one: return "repeat.1"
+        }
     }
 
     // MARK: - Быстрые действия
@@ -602,5 +635,45 @@ private struct FullPlayerView: View {
             return String(format: "%d:%02d:%02d", hr, min, sec)
         }
         return String(format: "%02d:%02d", min, sec)
+    }
+}
+
+// MARK: - Обложка (iTunes API)
+
+private struct AsyncArtworkView: View {
+    @ObservedObject private var loader = ITunesArtworkLoader.shared
+    let track: AudioTrack
+
+    var body: some View {
+        Group {
+            if let url = loader.artworkURL(for: track) {
+                AsyncImage(url: url) { phase in
+                    switch phase {
+                    case .success(let image):
+                        image.resizable().aspectRatio(contentMode: .fill)
+                    case .failure, .empty:
+                        placeholder
+                    @unknown default:
+                        placeholder
+                    }
+                }
+            } else {
+                placeholder
+            }
+        }
+        .onAppear { loader.load(track) }
+    }
+
+    private var placeholder: some View {
+        ZStack {
+            LinearGradient(
+                colors: [track.color, track.color.opacity(0.72)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            Image(systemName: "music.note")
+                .font(.system(size: 60, weight: .semibold))
+                .foregroundColor(.white.opacity(0.92))
+        }
     }
 }
