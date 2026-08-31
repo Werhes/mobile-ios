@@ -61,12 +61,37 @@ final class YandexMusicService {
 
     // MARK: - Лайкнутые треки ("Мне нравится", плейлист id = 3)
 
+    /// Возвращает полные треки «Мне нравится»:
+    /// 1. GET /users/{uid}/likes/tracks → короткие треки (id)
+    /// 2. GET /tracks/{ids} → полные объекты треков
     func fetchLikedTracks(token: String, uid: Int, completion: @escaping (Result<[YandexTrack], Error>) -> Void) {
-        request(path: "users/\(uid)/playlists/3", query: [:], token: token) {
-            (result: Result<YandexPlaylistResponse, Error>) in
+        request(path: "users/\(uid)/likes/tracks", query: [:], token: token) {
+            (result: Result<YandexLikesResponse, Error>) in
             switch result {
             case .success(let response):
-                completion(.success(response.result?.tracks ?? []))
+                let ids = response.result?.library?.tracks?.map { $0.id } ?? []
+                if ids.isEmpty {
+                    completion(.success([]))
+                } else {
+                    self.fetchTracks(ids: ids, token: token, completion: completion)
+                }
+            case .failure(let error):
+                completion(.failure(error))
+            }
+        }
+    }
+
+    private func fetchTracks(
+        ids: [Int],
+        token: String,
+        completion: @escaping (Result<[YandexTrack], Error>) -> Void
+    ) {
+        let idString = ids.map(String.init).joined(separator: ",")
+        request(path: "tracks/\(idString)", query: [:], token: token) {
+            (result: Result<YandexTracksResponse, Error>) in
+            switch result {
+            case .success(let response):
+                completion(.success(response.result ?? []))
             case .failure(let error):
                 completion(.failure(error))
             }
@@ -78,7 +103,7 @@ final class YandexMusicService {
     /// Возвращает прямую ссылку на MP3. Многие треки в Яндекс Музыке защищены
     /// DRM и не отдают рабочие ссылки — для них вернётся nil (трек будет пропущен).
     func fetchDownloadURL(token: String, trackId: Int, completion: @escaping (Result<String?, Error>) -> Void) {
-        request(path: "tracks/\(trackId)/download-info", query: ["hq": "true"], token: token) {
+        request(path: "tracks/\(trackId)/download-info", query: [:], token: token) {
             (result: Result<YandexDownloadInfoResponse, Error>) in
             switch result {
             case .success(let response):

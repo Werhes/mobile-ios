@@ -65,12 +65,27 @@ struct YandexTrack: Decodable, Identifiable, Hashable {
     }
 }
 
-struct YandexPlaylistResponse: Decodable {
-    let result: YandexPlaylist?
+/// Короткий трек из «Мне нравится» (содержит только id).
+struct YandexTrackShort: Decodable {
+    let id: Int
 }
 
-struct YandexPlaylist: Decodable {
-    let tracks: [YandexTrack]?
+/// Ответ `/users/{uid}/likes/tracks`: `{ "result": { "library": { "tracks": [...] } } }`.
+struct YandexLikesResponse: Decodable {
+    let result: YandexLikesResult?
+}
+
+struct YandexLikesResult: Decodable {
+    let library: YandexLikesLibrary?
+}
+
+struct YandexLikesLibrary: Decodable {
+    let tracks: [YandexTrackShort]?
+}
+
+/// Ответ `/tracks/{ids}`: `{ "result": [ Track, ... ] }`.
+struct YandexTracksResponse: Decodable {
+    let result: [YandexTrack]?
 }
 
 // MARK: - Ссылка на скачивание

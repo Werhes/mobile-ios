@@ -10,6 +10,7 @@ import SwiftUI
 
 struct MusicView: View {
 
+    @Environment(\.dismiss) private var dismiss
     @StateObject private var viewModel = MusicViewModel()
     @ObservedObject private var player = MusicPlayer.shared
     @ObservedObject private var offlineStore = OfflineTracksStore.shared
@@ -21,7 +22,7 @@ struct MusicView: View {
         NavigationView {
             ZStack(alignment: .bottom) {
                 content
-                    .padding(.bottom, player.hasCurrentTrack ? 62 : 0)
+                    .padding(.bottom, player.hasCurrentTrack ? 96 : 0)
 
                 if player.hasCurrentTrack {
                     MiniPlayerBar(player: player) {
@@ -32,6 +33,16 @@ struct MusicView: View {
             }
             .navigationTitle("Музыка")
             .navigationBarTitleDisplayMode(.large)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button {
+                        dismiss()
+                    } label: {
+                        Image(systemName: "chevron.left")
+                    }
+                    .accessibilityLabel("Назад")
+                }
+            }
             .searchable(text: $searchQuery, prompt: "Поиск музыки")
         }
         .navigationViewStyle(StackNavigationViewStyle())
@@ -279,74 +290,162 @@ private struct MiniPlayerBar: View {
     @ObservedObject var player: MusicPlayer
     var onTap: () -> Void
 
+    @State private var isEditingScrub = false
+    @State private var scrubValue = 0.0
+
     var body: some View {
-        HStack(spacing: 12) {
-            Button(action: onTap) {
-                HStack(spacing: 12) {
-                    if let currentTrack = player.currentTrack {
-                        AsyncArtworkView(track: currentTrack)
-                            .frame(width: 44, height: 44)
-                            .clipShape(RoundedRectangle(cornerRadius: 6))
-                    } else {
-                        ZStack {
-                            RoundedRectangle(cornerRadius: 6)
-                                .fill(Color.appAccent)
-                            Image(systemName: "music.note")
-                                .font(.system(size: 18))
-                                .foregroundColor(.white)
+        VStack(spacing: 0) {
+            HStack(spacing: 10) {
+                Button(action: onTap) {
+                    HStack(spacing: 10) {
+                        Group {
+                            if let currentTrack = player.currentTrack {
+                                AsyncArtworkView(track: currentTrack)
+                            } else {
+                                ZStack {
+                                    RoundedRectangle(cornerRadius: 6)
+                                        .fill(Color.secondary.opacity(0.2))
+                                    Image(systemName: "music.note")
+                                        .font(.system(size: 16))
+                                        .foregroundColor(.secondary)
+                                }
+                            }
                         }
-                        .frame(width: 44, height: 44)
+                        .frame(width: 40, height: 40)
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(player.currentTrack?.title ?? "")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundColor(.primary)
+                                .lineLimit(1)
+                            Text(player.currentTrack?.artist ?? "")
+                                .font(.system(size: 12))
+                                .foregroundColor(.secondary)
+                                .lineLimit(1)
+                        }
                     }
-
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(player.currentTrack?.title ?? "")
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundColor(.primary)
-                            .lineLimit(1)
-                        Text(player.currentTrack?.artist ?? "")
-                            .font(.system(size: 12))
-                            .foregroundColor(.secondary)
-                            .lineLimit(1)
-                    }
-
-                    Spacer()
-                }
-            }
-            .buttonStyle(PlainButtonStyle())
-
-            if player.isLoading {
-                ProgressView()
-                    .padding(.trailing, 4)
-            } else {
-                Button(action: {
-                    player.togglePlayPause()
-                }) {
-                    Image(systemName: player.isPlaying ? "pause.fill" : "play.fill")
-                        .font(.system(size: 22))
-                        .foregroundColor(.primary)
-                        .offset(x: player.isPlaying ? 0 : 1)
                 }
                 .buttonStyle(PlainButtonStyle())
-                .padding(.trailing, 2)
 
-                Button(action: {
-                    player.playNext()
-                }) {
-                    Image(systemName: "forward.fill")
-                        .font(.system(size: 20))
+                Spacer(minLength: 4)
+
+                transportButtons
+
+                shuffleRepeatButtons
+
+                Button(action: onTap) {
+                    Image(systemName: "chevron.up")
+                        .font(.system(size: 13, weight: .semibold))
                         .foregroundColor(.secondary)
                 }
                 .buttonStyle(PlainButtonStyle())
-                .padding(.trailing, 4)
             }
+            .padding(.horizontal, 12)
+            .padding(.top, 8)
+
+            HStack(spacing: 8) {
+                Text(formatTime(player.currentTime))
+                    .font(.system(size: 11).monospacedDigit())
+                    .foregroundColor(.secondary)
+                Slider(
+                    value: scrubBinding,
+                    in: 0...max(player.duration, 0.1),
+                    onEditingChanged: { editing in
+                        if editing {
+                            isEditingScrub = true
+                            scrubValue = player.currentTime
+                        } else {
+                            isEditingScrub = false
+                            player.seek(to: scrubValue)
+                        }
+                    }
+                )
+                .controlSize(.small)
+                .tint(Color.appAccent)
+                Text(formatTime(player.duration))
+                    .font(.system(size: 11).monospacedDigit())
+                    .foregroundColor(.secondary)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .background(BlurView(style: .systemMaterial))
+        .background(Color.white)
+        .overlay(alignment: .top) {
+            Divider()
+        }
         .clipShape(RoundedRectangle(cornerRadius: 14))
-        .shadow(color: Color.black.opacity(0.15), radius: 8, y: 2)
+        .shadow(color: Color.black.opacity(0.12), radius: 8, y: 2)
         .padding(.horizontal, 12)
         .padding(.bottom, 6)
+    }
+
+    private var transportButtons: some View {
+        HStack(spacing: 12) {
+            Button {
+                player.playPrevious()
+            } label: {
+                Image(systemName: "backward.fill")
+                    .font(.system(size: 14))
+                    .foregroundColor(.primary)
+            }
+            .buttonStyle(PlainButtonStyle())
+
+            Button {
+                player.togglePlayPause()
+            } label: {
+                Image(systemName: player.isLoading ? "ellipsis"
+                    : (player.isPlaying ? "pause.circle.fill" : "play.circle.fill"))
+                    .font(.system(size: 30))
+                    .foregroundColor(.primary)
+            }
+            .buttonStyle(PlainButtonStyle())
+
+            Button {
+                player.playNext()
+            } label: {
+                Image(systemName: "forward.fill")
+                    .font(.system(size: 14))
+                    .foregroundColor(.primary)
+            }
+            .buttonStyle(PlainButtonStyle())
+        }
+    }
+
+    private var shuffleRepeatButtons: some View {
+        HStack(spacing: 12) {
+            Button {
+                player.toggleShuffle()
+            } label: {
+                Image(systemName: "shuffle")
+                    .font(.system(size: 13))
+                    .foregroundColor(player.shuffleEnabled ? .appAccent : .secondary)
+            }
+            .buttonStyle(PlainButtonStyle())
+
+            Button {
+                player.cycleRepeatMode()
+            } label: {
+                Image(systemName: player.repeatMode == .one ? "repeat.1" : "repeat")
+                    .font(.system(size: 13))
+                    .foregroundColor(player.repeatMode == .off ? .secondary : .appAccent)
+            }
+            .buttonStyle(PlainButtonStyle())
+        }
+    }
+
+    private var scrubBinding: Binding<Double> {
+        Binding(
+            get: { isEditingScrub ? scrubValue : player.currentTime },
+            set: { scrubValue = $0 }
+        )
+    }
+
+    private func formatTime(_ seconds: Double) -> String {
+        let s = max(0, Int(seconds.isFinite ? seconds : 0))
+        let m = s / 60
+        let sec = s % 60
+        return String(format: "%d:%02d", m, sec)
     }
 }
 

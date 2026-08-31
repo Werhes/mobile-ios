@@ -21,12 +21,12 @@ struct YandexImportView: View {
     }
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.openURL) private var openURL
     @State private var phase: Phase = .auth
     @State private var tracks: [YandexTrack] = []
     @State private var selectedIDs: Set<Int> = []
     @State private var errorMessage: ImportError?
-    @State private var pendingToken: String?
-    @State private var loginSucceeded = false
+    @State private var tokenInput = ""
 
     // Progress
     @State private var totalToTransfer = 0
@@ -73,24 +73,36 @@ struct YandexImportView: View {
     // MARK: - Аутентификация
 
     private var authView: some View {
-        VStack(spacing: 12) {
-            // WebView для входа. Токен сохраняется, но далее переход делается
-            // только по кнопке «Далее» (без автоматического запуска).
-            YandexMusicAuthView { token in
-                handle(token: token)
-            }
-            .ignoresSafeArea()
+        VStack(spacing: 16) {
+            Spacer()
 
-            if loginSucceeded {
-                Label("Вход выполнен", systemImage: "checkmark.circle.fill")
-                    .font(.subheadline.weight(.medium))
-                    .foregroundColor(.green)
-            } else {
-                Text("Войдите в аккаунт Яндекс Музыки, затем нажмите «Далее».")
-                    .font(.footnote)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
+            Image(systemName: "music.note.house")
+                .font(.system(size: 44))
+                .foregroundColor(.secondary)
+
+            Text("Получите токен Яндекс Музыки")
+                .font(.headline)
+
+            Text("1. Откройте сайт ym-token.marshal.dev, войдите в аккаунт\nи скопируйте полученный токен.\n2. Вставьте его в поле ниже и нажмите «Далее».")
+                .font(.footnote)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 24)
+
+            Button {
+                if let url = URL(string: "https://ym-token.marshal.dev/") {
+                    openURL(url)
+                }
+            } label: {
+                Label("Открыть сайт для токена", systemImage: "safari")
             }
+            .buttonStyle(.bordered)
+
+            SecureField("Вставьте токен Яндекс Музыки", text: $tokenInput)
+                .textFieldStyle(RoundedBorderTextFieldStyle())
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .padding(.horizontal, 16)
 
             Button {
                 proceed()
@@ -100,42 +112,21 @@ struct YandexImportView: View {
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
+            .disabled(tokenInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             .padding(.horizontal, 16)
-            .padding(.bottom, 12)
+
+            Spacer()
         }
     }
 
-    /// Токен получен из WebView — запоминаем и ПРОВЕРЯЕМ через API.
-    /// «Вход выполнен» показываем только после успешного подтверждения токена,
-    /// чтобы не отображать ложный статус до реального входа.
-    private func handle(token raw: String) {
-        guard let token = YandexMusicService.cleanToken(raw) else {
+    /// Пользователь нажал «Далее» — берём введённый токен и начинаем загрузку треков.
+    private func proceed() {
+        guard let token = YandexMusicService.cleanToken(tokenInput) else {
             errorMessage = ImportError(message: YandexError.noToken.localizedDescription)
             return
         }
-        pendingToken = token
-        service.fetchUid(token: token) { [self] result in
-            switch result {
-            case .success:
-                YandexMusicService.storedToken = token
-                self.loginSucceeded = true
-            case .failure(let error):
-                self.pendingToken = nil
-                self.errorMessage = ImportError(
-                    message: "Не удалось подтвердить вход в Яндекс Музыку: \(error.localizedDescription)"
-                )
-            }
-        }
-    }
-
-    /// Пользователь нажал «Далее» — начинаем загрузку треков.
-    private func proceed() {
-        guard let token = pendingToken ?? YandexMusicService.storedToken else {
-            errorMessage = ImportError(message: "Сначала войдите в аккаунт Яндекс Музыки.")
-            return
-        }
-        pendingToken = nil
-        loginSucceeded = false
+        YandexMusicService.storedToken = token
+        tokenInput = ""
         phase = .loading
         loadTracks(token: token)
     }
